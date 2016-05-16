@@ -1,9 +1,25 @@
 package ro.pub.cs.systems.pdsd.lab07.landmarklister.views;
 
+import java.io.IOException;
+import java.util.ArrayList;
+
+import org.apache.http.client.ClientProtocolException;
+import org.apache.http.client.HttpClient;
+import org.apache.http.client.ResponseHandler;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.impl.client.BasicResponseHandler;
+import org.apache.http.impl.client.DefaultHttpClient;
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import ro.pub.cs.systems.pdsd.lab07.earthquakelister.R;
+import ro.pub.cs.systems.pdsd.lab07.landmarklister.controller.LandmarkInformationAdapter;
 import ro.pub.cs.systems.pdsd.lab07.landmarklister.general.Constants;
+import ro.pub.cs.systems.pdsd.lab07.landmarklister.model.LandmarkInformation;
 import android.app.Activity;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -63,7 +79,67 @@ public class LandmarkListerActivity extends Activity {
 			// - get the JSON array (the value corresponding to the "geonames" attribute)
 			// - iterate over the results list and create a LandmarkInformation for each element
 			// - create a LandmarkInformationAdapter with the array and attach it to the landmarksListView
-
+			String northString = northEditText.getText().toString();
+			String southString = southEditText.getText().toString();
+			String westString = westEditText.getText().toString();
+			String eastString = eastEditText.getText().toString();
+			
+			HttpClient httpClient = new DefaultHttpClient();
+			String url = Constants.LANDMARK_LISTER_WEB_SERVICE_INTERNET_ADDRESS + 
+					Constants.NORTH + northString +
+					"&" + Constants.SOUTH + southString +
+					"&" + Constants.EAST + eastString + 
+					"&" + Constants.WEST + westString +
+					"&" + Constants.CREDENTIALS;
+			HttpGet httpGet = new HttpGet(url);
+			ResponseHandler<String> responseHandler = new BasicResponseHandler();
+			try {
+				String content = httpClient.execute(httpGet, responseHandler);
+				final ArrayList<LandmarkInformation> landmarkInformationList = new ArrayList<LandmarkInformation>();
+				JSONObject result = new JSONObject(content);
+				JSONArray jsonArray = result.getJSONArray(Constants.GEONAMES);
+				
+				for (int i = 0; i < jsonArray.length(); i++) {
+					JSONObject jsonObject = jsonArray.getJSONObject(i);
+					landmarkInformationList.add(new LandmarkInformation(
+							jsonObject.getDouble(Constants.LATITUDE),
+							jsonObject.getDouble(Constants.LONGITUDE),
+							jsonObject.getString(Constants.TOPONYM_NAME),
+							jsonObject.getLong(Constants.POPULATION),
+							jsonObject.getString(Constants.FCODE_NAME),
+							jsonObject.getString(Constants.NAME),
+							jsonObject.getString(Constants.WIKIPEDIA_WEB_PAGE_ADDRESS),
+							jsonObject.getString(Constants.COUNTRY_CODE)							
+							));
+				}
+				landmarksListView.post(new Runnable() {
+					
+					@Override
+					public void run() {
+						landmarksListView.setAdapter(new LandmarkInformationAdapter(getBaseContext(), landmarkInformationList));
+						
+					}
+				});
+				
+				
+			} catch (ClientProtocolException clientProtocolException) {
+				Log.e(Constants.TAG, clientProtocolException.getMessage());
+				if (Constants.DEBUG) {
+					clientProtocolException.printStackTrace();
+				}
+			} catch (IOException ioException) {
+				Log.e(Constants.TAG, ioException.getMessage());
+				if (Constants.DEBUG) {
+					ioException.printStackTrace();
+				}
+			} catch (JSONException jsonException) {
+				Log.e(Constants.TAG, jsonException.getMessage());
+				if (Constants.DEBUG) {
+					jsonException.printStackTrace();
+				}
+			}
+			
+					
 		}
 	}
 	
